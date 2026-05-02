@@ -8,11 +8,9 @@
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">Daftar Mahasiswa</h1>
-                <p class="text-sm text-gray-500 mt-1">Total: {{ $mahasiswa->total()
-                }} mahasiswa</p>
+                <p class="text-sm text-gray-500 mt-1">Total: {{ $mahasiswa->total() }} mahasiswa</p>
             </div>
-            <a href="{{ route('mahasiswa.create') }}" 
-                class="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-md transition flex items-center gap-2">
+            <a href="{{ route('mahasiswa.create') }}" class="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-md transition flex items-center gap-2">
                 <span>+</span>
                 <span>Tambah Mahasiswa</span>
             </a>
