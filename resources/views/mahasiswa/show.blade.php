@@ -10,7 +10,11 @@
 
         {{-- Header dengan foto --}}
         <div class="flex items-start gap-6 pb-6 border-b">
-            <img src="{{ $mahasiswa->foto_url }}" alt="{{ $mahasiswa->nama }}" class="w-24 h-24 rounded-full object-cover ring-4 ring-green-500">
+            
+            <img src="{{ $mahasiswa->foto_url }}" alt="{{ $mahasiswa->nama }}"
+                class="w-24 h-24 rounded-full object-cover ring-4 ring-green-500">
+            
+            
             <div class="flex-1">
                 <h1 class="text-2xl font-bold text-gray-800">{{ $mahasiswa->nama }}</h1>
                 <p class="text-gray-600 mt-1">NIM: <span class="font-mono">{{$mahasiswa->nim }}</span></p>

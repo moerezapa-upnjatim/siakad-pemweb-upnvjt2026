@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DBLogActivities;
 use Illuminate\Http\Request;
 use App\Models\mahasiswa;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class MahasiswaController extends Controller
@@ -72,13 +74,29 @@ class MahasiswaController extends Controller
         'foto.image' => 'File harus berupa gambar.',
         'foto.max' => 'Ukuran foto maksimal 2 MB.',
         ]);
-        // Upload foto (jika ada)
+        
+        // validasi apakah ada foto yang di upload
+        $profilePhotoPath = null;
         if ($request->hasFile('foto')) {
-            $path = $request->file('foto')->store('mahasiswa', 'public');
-            $validated['foto'] = $path;
+            $profilePhotoPath = $request->file('foto')->store('mahasiswa', 'public');
+            $validated['foto'] = $profilePhotoPath;
         }
-        // Simpan ke database
-        Mahasiswa::create($validated);
+
+        // 1. BEFORE - Simpan ke database
+        // Mahasiswa::create($validated);
+
+        // 1. AFTER - transaction only for db operations
+        DB::transaction(function() use($validated){
+            // insert data mahasiswa temporary
+            mahasiswa::create($validated);
+            // insert log activity
+            DB::table(DBLogActivities::TABLE_NAME)->insert([
+                DBLogActivities::ACTION_COLUMN => DBLogActivities::CREATE,
+                DBLogActivities::DESC_COLUMN => 'Tambah Mahasiswa: ' . $validated['nama'],
+                'created_at' => now()
+            ]);
+        });
+
         return redirect()
             ->route('mahasiswa.index')
             ->with('success', 'Data mahasiswa berhasil ditambahkan.');
@@ -117,23 +135,59 @@ class MahasiswaController extends Controller
             'tanggal_lahir' => 'nullable|date',
             'alamat' => 'nullable|string',
             'no_hp' => 'nullable|string|max:15',
-            'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            // 'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'prodi' => 'required|string|max:50',
             'angkatan' => 'required|integer|min:2000|max:' . date('Y'),
             'ipk' => 'nullable|numeric|min:0|max:4',
             'status' => 'required|in:aktif,cuti,lulus,do',
         ]);
 
+        // 2. Validate file separately (optional but recommended)
+        $request->validate([
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        // 1. BEFORE - SEBELUM MENERAPKAN TRANSACTION
         // Upload foto baru (jika ada)
+        // if ($request->hasFile('foto')) {
+        // // Hapus foto lama
+        // if ($mahasiswa->foto) {
+        //     Storage::disk('public')->delete($mahasiswa->foto);
+        // }
+        //     $path = $request->file('foto')->store('mahasiswa', 'public');
+        //     $validated['foto'] = $path;
+        // }
+        // $mahasiswa->update($validated);
+
+        
+        // 2. AFTER - SETELAH MENERAPKAN TRANSACTION
+        // 2.1. UPLOAD FOTO --> SEMENTARA SIMPAN PATH NYA
+
+        $oldPhoto = $mahasiswa->foto;
+        $newPhoto = null;
+
         if ($request->hasFile('foto')) {
-        // Hapus foto lama
-        if ($mahasiswa->foto) {
-            Storage::disk('public')->delete($mahasiswa->foto);
+            $newPhoto = $request->file('foto')->store('mahasiswa', 'public');
+            $validated['foto'] = $newPhoto;
         }
-            $path = $request->file('foto')->store('mahasiswa', 'public');
-            $validated['foto'] = $path;
+
+        // 2.2. Transaction (DB only)
+        DB::transaction(function () use ($validated, $mahasiswa) {
+            $oldNama = $mahasiswa->nama;
+
+            $mahasiswa->update($validated);
+
+            DBLogActivities::create([
+                DBLogActivities::ACTION_COLUMN => DBLogActivities::UPDATE,
+                DBLogActivities::DESC_COLUMN => "Update mahasiswa: {$oldNama} menjadi {$validated['nama']}",
+            ]);
+        });
+
+        // 4. Cleanup file lama (SETELAH sukses)
+        if ($newPhoto && $newPhoto) {
+            Storage::disk('public')->delete($oldPhoto);
         }
-        $mahasiswa->update($validated);
+
         return redirect()
             ->route('mahasiswa.index')
             ->with('success', 'Data mahasiswa berhasil diperbarui.');
@@ -145,13 +199,32 @@ class MahasiswaController extends Controller
     */
     public function destroy(Mahasiswa $mahasiswa)
     {
-    // Hapus foto dari storage (jika ada)
-    if ($mahasiswa->foto) {
-        Storage::disk('public')->delete($mahasiswa->foto);
-    }
-    $mahasiswa->delete();
-    return redirect()
-        ->route('mahasiswa.index')
-        ->with('success', 'Data mahasiswa berhasil dihapus.');
+        // 1. BEFORE - SEBELUM MENGGUNAKAN TRANSACTION
+        // Hapus foto dari storage (jika ada)
+        // if ($mahasiswa->foto) {
+        //     Storage::disk('public')->delete($mahasiswa->foto);
+        // }
+        // $mahasiswa->delete();
+
+        // 2. AFTER - SETELAH MENGGUNAKAN TRANSACTION
+        $fotoPath = $mahasiswa->foto;
+        $nama = $mahasiswa->nama;
+
+        DB::transaction(function () use ($mahasiswa, $nama) {
+            $mahasiswa -> delete();
+            
+            DBLogActivities::create([
+                DBLogActivities::ACTION_COLUMN => DBLogActivities::DELETE,
+                DBLogActivities::DESC_COLUMN => "Hapus mahasiswa: {$nama}"
+            ]);
+        });
+
+        if($fotoPath) {
+            Storage::disk('public')->delete($fotoPath);
+        }
+
+        return redirect()
+            ->route('mahasiswa.index')
+            ->with('success', 'Data mahasiswa berhasil dihapus.');
     }
 }

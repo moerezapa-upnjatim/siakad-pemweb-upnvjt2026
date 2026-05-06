@@ -54,7 +54,6 @@ class mahasiswa extends Model
         if ($this->foto) {
             return asset('storage/' . $this->foto);
         }
-        return 'https://ui-avatars.com/api/?name=' . urlencode($this->nama) .
-        '&background=2563eb&color=fff';
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->nama) .'&background=2563eb&color=fff';
     }
 }

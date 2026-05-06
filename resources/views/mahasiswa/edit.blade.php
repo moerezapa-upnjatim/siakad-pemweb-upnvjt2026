@@ -9,8 +9,7 @@
             <h1 class="text-2xl font-bold text-gray-800 mt-2">Edit Mahasiswa</h1>
         </div>
 
-        <form action="{{ route('mahasiswa.update', $mahasiswa->id) }}" method="POST"
-            enctype="multipart/form-data" class="space-y-5">
+        <form action="{{ route('mahasiswa.update', $mahasiswa->id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
             @csrf
             @method('PUT') {{-- Method Spoofing untuk Update --}}
             
